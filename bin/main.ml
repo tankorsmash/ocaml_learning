@@ -22,11 +22,16 @@ let parse_string raw_string =
 
 let decode_todo json =
   let open Yojson.Safe.Util in
-  { user_id = json |> member "userId" |> to_int
-  ; id = json |> member "id" |> to_int
-  ; title = json |> member "title" |> to_string
-  ; completed = json |> member "completed" |> to_bool
-  }
+  try
+    Ok
+      { user_id = json |> member "userId" |> to_int
+      ; id = json |> member "id" |> to_int
+      ; title = json |> member "title" |> to_string
+      ; completed = json |> member "completed" |> to_bool
+      }
+  with
+  (* | Yojson.Json_error e -> Error e *)
+  | Yojson.Safe.Util.Type_error (msg, value) -> Error (msg, value)
 ;;
 
 (** open Cohttp
@@ -56,13 +61,20 @@ let main () =
   let _ =
     match parse_result with
     | Ok valid_parse_result ->
-      let parsed_todo : todo = decode_todo valid_parse_result in
-      Printf.printf "\nDECODE %s\n" "";
-      let stringedInts = List.map string_of_int counts in
-      let oneWord = String.concat ", " stringedInts in
-      print_endline (prefix ^ oneWord ^ suffix);
-      (* Printf.printf "\n%s!!\n" body *)
-      Printf.printf "\n%s!!\n" parsed_todo.title
+      let decoded_todo_result : (todo, string * Yojson.Safe.t) result =
+        decode_todo valid_parse_result
+      in
+      (match decoded_todo_result with
+       | Ok valid_todo ->
+         Printf.printf "\nDECODE %s\n" "";
+         let stringedInts = List.map string_of_int counts in
+         let oneWord = String.concat ", " stringedInts in
+         print_endline (prefix ^ oneWord ^ suffix);
+         (* Printf.printf "\n%s!!\n" body *)
+         Printf.printf "\n%s!!\n" valid_todo.title
+       | Error (err_string, value) ->
+         print_endline "ERROR";
+         print_endline err_string)
     | Error err_string ->
       print_endline "ERROR";
       print_endline err_string
