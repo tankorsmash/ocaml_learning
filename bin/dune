@@ -1,4 +1,5 @@
 (executable
  (public_name first_ocaml)
  (name main)
- (libraries first_ocaml))
+ (flags :standard -g)
+ (libraries first_ocaml cohttp-lwt-unix lwt ssl tls yojson))
