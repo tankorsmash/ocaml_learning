@@ -24,9 +24,9 @@ let parse_string raw_string =
   | Yojson.Json_error e -> Error e
 ;;
 
-let my_rng () =
-  let rng = Random.State.make [| 1; 2; 3 |] in
-  Random.State.int rng 100, rng
+let init_rng =
+  let rng = Random.State.make [| 0 |] in
+  rng
 ;;
 
 let rand_int rng max =
@@ -34,12 +34,7 @@ let rand_int rng max =
   n, rng
 ;;
 
-let num = my_rng >> snd >> (fun rng -> rand_int rng 100) >> fst;;
-
-Printf.printf "NUMBER %d\n" @@ fst @@ my_rng ();;
-Printf.printf "NUMBER %d\n" @@ num ();;
-Printf.printf "NUMBER %d\n" @@ fst @@ my_rng ();;
-Printf.printf "NUMBER %d\n" @@ fst @@ my_rng ()
+(* Printf.printf "NUMBER %d\n" @@ fst @@ rand_int init_rng 100 *)
 
 let decode_todo json =
   let open Yojson.Safe.Util in
@@ -60,21 +55,21 @@ let get (url : string) : string Lwt.t =
   >>= fun (_resp, body) -> Cohttp_lwt.Body.to_string body
 ;;
 
-let prefix = "\nbegin prog\n"
-let suffix = "\nend prog\n"
 let counts = [ 1; 2; 3; 4 ]
 let _test () = "hello!"
 let global_var = ref 1
 
 let main () =
   global_var := !global_var + 1;
+  let todo_id, new_rng = rand_int init_rng 200 in
   Printf.printf "\nBEGIN %d\n" !global_var;
   let body : string =
-    Lwt_main.run (get "https://jsonplaceholder.typicode.com/todos/1")
+    let qwe =
+      Printf.sprintf "https://jsonplaceholder.typicode.com/todos/%d" todo_id
+    in
+    Lwt_main.run (get qwe)
   in
-  Printf.printf "\nAGAIN %d\n" !global_var;
-  let parse_result = parse_string {|{"title":"josh"}|} (* body *) in
-  Printf.printf "\nREAD %s\n" "";
+  let parse_result = parse_string body in
   let _ =
     match parse_result with
     | Ok valid_parse_result ->
@@ -83,10 +78,6 @@ let main () =
       in
       (match decoded_todo_result with
        | Ok valid_todo ->
-         Printf.printf "\nDECODE %s\n" "";
-         let stringedInts = List.map string_of_int counts in
-         let oneWord = String.concat ", " stringedInts in
-         print_endline (prefix ^ oneWord ^ suffix);
          (* Printf.printf "\n%s!!\n" body *)
          Printf.printf "\n%s!!\n" valid_todo.title
        | Error (err_string, value) ->
