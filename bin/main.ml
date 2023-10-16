@@ -1,8 +1,16 @@
 [@@@ocaml.warning "-27"]
 [@@@ocaml.warning "-26"]
+[@@@ocaml.warning "-32"]
 
 open Lwt.Infix
-open Cohttp_lwt_unix
+open Cohttp_lwt_unix;;
+
+Printf.printf "\n"
+
+let ( >> ) f g x = g (f x)
+let ( << ) f g x = f (g x)
+let fst (x, _) = x
+let snd (_, x) = x
 
 type todo =
   { user_id : int
@@ -12,34 +20,40 @@ type todo =
   }
 
 let parse_string raw_string =
-  try
-    Ok
-      (let qwe = Yojson.Safe.from_string raw_string in
-       qwe)
-  with
+  try Ok (Yojson.Safe.from_string raw_string) with
   | Yojson.Json_error e -> Error e
 ;;
 
-let decode_todo json =
-  let open Yojson.Safe.Util in
-  try
-    Ok
-      { user_id = json |> member "userId" |> to_int
-      ; id = json |> member "id" |> to_int
-      ; title = json |> member "title" |> to_string
-      ; completed = json |> member "completed" |> to_bool
-      }
-  with
-  (* | Yojson.Json_error e -> Error e *)
-  | Yojson.Safe.Util.Type_error (msg, value) -> Error (msg, value)
+let my_rng () =
+  let rng = Random.State.make [| 1; 2; 3 |] in
+  Random.State.int rng 100, rng
 ;;
 
-(** open Cohttp
-    let (>>) f g x = g (f x);;
-    let (<<) g f x = g (f x);;
+let rand_int rng max =
+  let n = Random.State.int rng max in
+  n, rng
+;;
 
-    let myText = "\nHello, World " ;;
-    **)
+let num = my_rng >> snd >> (fun rng -> rand_int rng 100) >> fst;;
+
+Printf.printf "NUMBER %d\n" @@ fst @@ my_rng ();;
+Printf.printf "NUMBER %d\n" @@ num ();;
+Printf.printf "NUMBER %d\n" @@ fst @@ my_rng ();;
+Printf.printf "NUMBER %d\n" @@ fst @@ my_rng ()
+
+let decode_todo json =
+  let open Yojson.Safe.Util in
+  let json_member name = json |> member name in
+  try
+    Ok
+      { user_id = json_member "userId" |> to_int
+      ; id = json_member "id" |> to_int
+      ; title = json_member "title" |> to_string
+      ; completed = json_member "completed" |> to_bool
+      }
+  with
+  | Yojson.Safe.Util.Type_error (msg, value) -> Error (msg, value)
+;;
 
 let get (url : string) : string Lwt.t =
   Client.get (Uri.of_string url)
@@ -50,12 +64,15 @@ let prefix = "\nbegin prog\n"
 let suffix = "\nend prog\n"
 let counts = [ 1; 2; 3; 4 ]
 let _test () = "hello!"
+let global_var = ref 1
 
 let main () =
-  Printf.printf "\nBEGIN %s\n" "";
+  global_var := !global_var + 1;
+  Printf.printf "\nBEGIN %d\n" !global_var;
   let body : string =
     Lwt_main.run (get "https://jsonplaceholder.typicode.com/todos/1")
   in
+  Printf.printf "\nAGAIN %d\n" !global_var;
   let parse_result = parse_string {|{"title":"josh"}|} (* body *) in
   Printf.printf "\nREAD %s\n" "";
   let _ =
